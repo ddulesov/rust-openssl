@@ -606,7 +606,7 @@ fn default_verify_paths() {
     ssl.set_hostname("google.com").unwrap();
     let mut socket = ssl.connect(s).unwrap();
 
-    socket.write_all(b"GET / HTTP/1.0\r\n\r\n").unwrap();
+    socket.write_all(b"GET / HTTP/1.1\r\n\r\n").unwrap();
     let mut result = vec![];
     socket.read_to_end(&mut result).unwrap();
 

@@ -251,11 +251,32 @@ extern "C" {
 
     #[cfg(not(ossl110))]
     pub fn OPENSSL_add_all_algorithms_noconf();
+    #[cfg(not(ossl110))]
+    pub fn OPENSSL_config(name: *const c_char);
+    #[cfg(not(ossl110))]
+    pub fn OPENSSL_no_config();
+    #[cfg(not(ossl110))]
+    pub fn OPENSSL_add_all_algorithms_conf();
+
 
     pub fn EVP_get_digestbyname(name: *const c_char) -> *const EVP_MD;
     pub fn EVP_get_cipherbyname(name: *const c_char) -> *const EVP_CIPHER;
 
     pub fn EVP_PKEY_id(pkey: *const EVP_PKEY) -> c_int;
+
+    #[cfg(ossl110)]
+    pub fn CONF_modules_load(cnf: *const CONF,appname: *const c_char, flags: c_uint) -> c_uint;
+    #[cfg(ossl110)]
+    pub fn CONF_modules_load_file(filename: *const c_char,appname: *const c_char, flags: c_uint) -> c_uint;
+                    
+    pub fn ENGINE_load_builtin_engines();
+    pub fn OPENSSL_load_builtin_modules();
+
+    pub fn ERR_print_errors(io: *mut BIO);
+    pub fn ENGINE_by_id(id: *const c_char) ->*const ENGINE;
+
+
+
 }
 cfg_if! {
     if #[cfg(any(ossl110, libressl280))] {

@@ -94,6 +94,9 @@ pub fn init() {
     static INIT: Once = ONCE_INIT;
 
     INIT.call_once(|| unsafe {
+        ENGINE_load_builtin_engines();
+        OPENSSL_load_builtin_modules();
+
         OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, ptr::null_mut());
     })
 }

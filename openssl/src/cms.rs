@@ -14,6 +14,7 @@ use error::ErrorStack;
 use libc::c_uint;
 use pkey::{HasPrivate, PKeyRef};
 use stack::StackRef;
+use x509::store::{ X509StoreRef};
 use x509::{X509Ref, X509};
 use symm::Cipher;
 use {cvt, cvt_p};
@@ -221,14 +222,140 @@ impl CmsContentInfo {
             Ok(CmsContentInfo::from_ptr(cms))
         }
     }
+
+
+    pub fn verify(
+        &self,
+        certs: &StackRef<X509>,
+        store: &X509StoreRef,
+        data: Option<&[u8]>,
+        out: Option<&mut Vec<u8>>,
+        flags: CMSOptions,
+    ) -> Result<(), ErrorStack>
+    {
+        let out_bio = MemBio::new()?;
+
+        let indata_bio = match data {
+            Some(data) => Some(MemBioSlice::new(data)?),
+            None => None,
+        };
+        let indata_bio_ptr = indata_bio.as_ref().map_or(ptr::null_mut(), |p| p.as_ptr());
+
+        unsafe {
+            cvt(ffi::CMS_verify(
+                self.as_ptr(),
+                certs.as_ptr(),
+                store.as_ptr(),
+                indata_bio_ptr,
+                out_bio.as_ptr(),
+                flags.bits,
+            ))
+            .map(|_| ())?
+        }
+
+        if let Some(data) = out {
+            data.clear();
+            data.extend_from_slice(out_bio.get_buf());
+        }
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::ffi::{CString};
     use stack::Stack;
     use x509::X509;
+    use x509::store::{X509Store, X509StoreBuilder};
     use pkcs12::Pkcs12;
+    use std::io::{self, Write};
+
+    #[allow(dead_code)]	
+    unsafe fn err_print_errors() -> Result<(), io::Error> {
+        let out_bio = MemBio::new()?;
+        ffi::ERR_print_errors( out_bio.as_ptr() );
+        io::stdout().write_all( out_bio.get_buf() )?;
+        Ok(())
+    }
+
+    #[test]
+    fn cms_verify() {
+        let mut outdata = Vec::new();
+
+        let ca_cert_bytes = include_bytes!("../test/cms_verify_ca.pem");
+        let p7_cert_bytes = include_bytes!("../test/cms_verify_p7.pem");
+
+        let ca_cert = X509::from_pem(ca_cert_bytes).expect("failed to load ca cert");
+        let cert_stack = Stack::new().expect("failed to create stack");
+        
+        let mut builder = X509StoreBuilder::new().unwrap();
+        let _ = builder.add_cert(ca_cert);
+
+        let store: X509Store = builder.build();
+
+        let cms = CmsContentInfo::from_pem(p7_cert_bytes).expect("failed create CMS from pem");
+        cms.verify(
+            &cert_stack, 
+            &store, 
+            None, 
+            Some(&mut outdata), 
+            CMSOptions::empty() 
+        ).expect("cms verification faild");
+
+    }
+
+    #[test]
+    fn cms_verify_gost() {
+        let mut outdata = Vec::new();
+        unsafe{
+
+            ffi::ENGINE_load_builtin_engines();
+            ffi::OPENSSL_load_builtin_modules();
+
+            /*let mut app = CString::new("app").expect("failed");
+            
+            let conf = CString::new("../test/openssl.cfg").expect("failed");
+            
+            let res = ffi::CONF_modules_load_file(conf.as_ptr() , app.as_ptr(), 0x0 as  c_uint);
+            if(res<=0){
+                ERR_print_errors();
+                println!("res {}", res);
+            }
+            assert!(res==0x01); 
+            */
+
+            let app  = CString::new("gost").expect("unexpected failed");
+            let e=ffi::ENGINE_by_id(app.as_ptr());
+
+            assert!(!e.is_null());
+        }
+    
+        let  ca_cert_bytes = include_bytes!("../test/cms_verify_ca_gost.pem");
+        
+        let mut ca_cert = X509::from_pem(ca_cert_bytes).expect("failed to load ca cert");
+        let cert_stack = Stack::new().expect("failed to create stack");
+        
+        let mut builder = X509StoreBuilder::new().unwrap();
+        builder.add_cert(ca_cert).expect("unexpected");
+        //second ca
+        let ca_cert_bytes2 = include_bytes!("../test/cms_verify_ca_gost2.pem");
+        ca_cert = X509::from_pem(ca_cert_bytes2).expect("failed to load ca cert");
+        builder.add_cert(ca_cert).expect("unexpected");
+
+        let store: X509Store = builder.build();
+        let p7_cert_bytes = include_bytes!("../test/cms_verify_p7_gost.pem");
+        let cms = CmsContentInfo::from_pem(p7_cert_bytes).expect("failed create CMS from pem");
+        
+        cms.verify(
+            &cert_stack, 
+            &store, 
+            None, 
+            Some(&mut outdata), 
+            CMSOptions::empty() 
+        ).expect("cms verification faild");
+    }
 
     #[test]
     fn cms_encrypt_decrypt() {
