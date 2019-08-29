@@ -17,6 +17,7 @@ pub use dh::*;
 pub use dsa::*;
 pub use dtls1::*;
 pub use ec::*;
+pub use engine::*;
 pub use err::*;
 pub use evp::*;
 pub use hmac::*;
@@ -54,6 +55,7 @@ mod dh;
 mod dsa;
 mod dtls1;
 mod ec;
+mod engine;
 mod err;
 mod evp;
 mod hmac;
@@ -89,13 +91,25 @@ pub type PasswordCallback = unsafe extern "C" fn(
 pub fn init() {
     use std::ptr;
     use std::sync::{Once, ONCE_INIT};
+    use std::ffi::{CStr};
 
     // explicitly initialize to work around https://github.com/openssl/openssl/issues/3505
     static INIT: Once = ONCE_INIT;
 
     INIT.call_once(|| unsafe {
+	//OPENSSL_add_all_algorithms_conf();
         ENGINE_load_builtin_engines();
         OPENSSL_load_builtin_modules();
+
+	let gost = CStr::from_bytes_with_nul(b"gost\0").expect("failed");
+
+        
+        let e=ENGINE_by_id(gost.as_ptr());
+            
+
+        //leak e!!!!
+        ENGINE_init(e);
+        ENGINE_set_default( e, ENGINE_METHOD_ALL );
 
         OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, ptr::null_mut());
     })

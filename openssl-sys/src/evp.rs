@@ -255,7 +255,7 @@ extern "C" {
     pub fn OPENSSL_config(name: *const c_char);
     #[cfg(not(ossl110))]
     pub fn OPENSSL_no_config();
-    #[cfg(not(ossl110))]
+    
     pub fn OPENSSL_add_all_algorithms_conf();
 
 
@@ -269,11 +269,9 @@ extern "C" {
     #[cfg(ossl110)]
     pub fn CONF_modules_load_file(filename: *const c_char,appname: *const c_char, flags: c_uint) -> c_uint;
                     
-    pub fn ENGINE_load_builtin_engines();
     pub fn OPENSSL_load_builtin_modules();
 
     pub fn ERR_print_errors(io: *mut BIO);
-    pub fn ENGINE_by_id(id: *const c_char) ->*const ENGINE;
 
 
 

@@ -311,8 +311,8 @@ mod test {
         let mut outdata = Vec::new();
         unsafe{
 
-            ffi::ENGINE_load_builtin_engines();
-            ffi::OPENSSL_load_builtin_modules();
+            //ffi::ENGINE_load_builtin_engines();
+            //ffi::OPENSSL_load_builtin_modules();
 
             /*let mut app = CString::new("app").expect("failed");
             
@@ -326,10 +326,11 @@ mod test {
             assert!(res==0x01); 
             */
 
-            let app  = CString::new("gost").expect("unexpected failed");
-            let e=ffi::ENGINE_by_id(app.as_ptr());
+            //let app  = CString::new("gost").expect("unexpected failed");
+            //let e=ffi::ENGINE_by_id(app.as_ptr());
 
-            assert!(!e.is_null());
+            //assert!(!e.is_null());
+	    ffi::init();
         }
     
         let  ca_cert_bytes = include_bytes!("../test/cms_verify_ca_gost.pem");
